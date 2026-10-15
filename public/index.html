@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0d0d0d">
+  <title>SeeFood: Hotdog or Not Hotdog</title>
+  <meta name="description" content="The Shazam for food. Point your camera at food and find out if it's a hotdog. Rebuilt on Jev 1.14 from TypeSafe AI.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="SeeFood: Hotdog or Not Hotdog">
+  <meta property="og:description" content="The Shazam for food, rebuilt on Jev 1.14. Currently identifies: hot dogs.">
+  <meta property="og:image" content="https://not-hotdog.theotherkhan271.workers.dev/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="SeeFood: Hotdog or Not Hotdog">
+  <meta name="twitter:description" content="The Shazam for food, rebuilt on Jev 1.14. Currently identifies: hot dogs.">
+  <meta name="twitter:image" content="https://not-hotdog.theotherkhan271.workers.dev/og.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="SeeFood">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌭</text></svg>">
+  <link rel="stylesheet" href="/style.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <main id="phone" data-state="home">
+    <section id="stage">
+      <video id="video" playsinline muted hidden></video>
+      <img id="backdrop" alt="" hidden>
+      <img id="photo" alt="" hidden>
+      <div id="box" hidden><span></span></div>
+      <div id="scan" hidden></div>
+      <div id="verdict" hidden>
+        <div class="bar"><span class="word"></span></div>
+        <div class="badge">
+          <svg class="check" viewBox="0 0 48 48"><path d="M11 25l9 9 17-19"/></svg>
+          <svg class="cross" viewBox="0 0 48 48"><path d="M14 14l20 20M34 14L14 34"/></svg>
+          <svg class="ban" viewBox="0 0 48 48"><circle cx="24" cy="24" r="14"/><path d="M14 34L34 14"/></svg>
+        </div>
+        <div class="prob"></div>
+      </div>
+      <div id="livepill" hidden></div>
+      <div id="home">
+        <div class="dog">🌭</div>
+        <h1>SeeFood</h1>
+        <p class="tag">The Shazam for food.</p>
+        <p class="sub">Currently identifies: hot dogs.</p>
+        <div id="samples">
+          <p>No camera? Try one:</p>
+          <div class="strip">
+            <button data-sample="hotdog"><img src="/samples/hotdog-thumb.jpg" alt="Hot dog"></button>
+            <button data-sample="pizza"><img src="/samples/pizza-thumb.jpg" alt="Pizza"></button>
+            <button data-sample="wiener-dog"><img src="/samples/wiener-dog-thumb.jpg" alt="Wiener dog"></button>
+            <button data-sample="corndog"><img src="/samples/corndog-thumb.jpg" alt="Corn dogs"></button>
+            <button data-sample="tacos"><img src="/samples/tacos-thumb.jpg" alt="Tacos"></button>
+            <button data-sample="hotdog-2"><img src="/samples/hotdog-2-thumb.jpg" alt="Chili cheese dog"></button>
+          </div>
+        </div>
+        <p class="jev">Rebuilt on Jev 1.14 👁️</p>
+        <p id="install" hidden>Install it: tap <b>Share</b>, then <b>Add to Home Screen</b>.</p>
+      </div>
+      <p id="toast" hidden></p>
+    </section>
+
+    <nav id="controls">
+      <button id="open" class="primary" data-in="home">Open camera</button>
+      <button id="upload" data-in="home">Upload a photo</button>
+      <button id="gallery" class="icon" data-in="camera live" aria-label="Upload a photo">
+        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>
+      </button>
+      <button id="shutter" data-in="camera live" aria-label="Take photo"></button>
+      <button id="live" class="icon" data-in="camera live" aria-label="Live mode">LIVE</button>
+      <button id="again" data-in="result blocked">Again</button>
+      <button id="share" class="primary" data-in="result">Share</button>
+    </nav>
+
+    <footer>
+      Fan-made, not affiliated with HBO. Photos aren't stored.
+      Powered by <a href="https://typesafe.ai" target="_blank" rel="noopener">Jev 1.14</a> · <a href="/credits.html">Sample photo credits</a>
+    </footer>
+  </main>
+  <input id="file" type="file" accept="image/*" hidden>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "not-hotdog",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-10-01",
+  "assets": { "directory": "./public", "binding": "ASSETS" },
+  // Per-IP cap. Live mode sends at most 150 frames/min (one per 400 ms); 240 leaves room for snaps.
+  "ratelimits": [
+    { "name": "LIMITER", "namespace_id": "4207", "simple": { "limit": 240, "period": 60 } }
+  ],
+  "observability": { "enabled": true }
+}
