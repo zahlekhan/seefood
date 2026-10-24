@@ -1,7 +1,7 @@
 // Send photos through SeeFood's API and print what the obscene-photo filter decides.
 //
 //   node scripts/check-filter.mjs test-images/
-//   node scripts/check-filter.mjs --url https://not-hotdog.theotherkhan271.workers.dev ~/Desktop/test.heic
+//   node scripts/check-filter.mjs --url https://seefood.si ~/Desktop/test.heic
 //
 // Takes files or folders of JPEG, PNG or HEIC. macOS `sips` shrinks each one to ≤1024px JPEG
 // first, the same as the app does in the browser. The block threshold is OBSCENE_AT in src/worker.js.

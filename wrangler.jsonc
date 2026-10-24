@@ -4,9 +4,21 @@
   "main": "src/worker.js",
   "compatibility_date": "2026-10-01",
   "assets": { "directory": "./public", "binding": "ASSETS" },
+  // seefood.si is a zone on this Cloudflare account; the old workers.dev URL keeps working too.
+  "routes": [{ "pattern": "seefood.si", "custom_domain": true }],
+  "workers_dev": true,
   // Per-IP cap. Live mode sends at most 150 frames/min (one per 400 ms); 240 leaves room for snaps.
   "ratelimits": [
     { "name": "LIMITER", "namespace_id": "4207", "simple": { "limit": 240, "period": 60 } }
   ],
-  "observability": { "enabled": true }
+  // Totals traffic across isolates and sends alerts (spike, Jev credits empty, bad key).
+  "durable_objects": { "bindings": [{ "name": "MONITOR", "class_name": "Monitor" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Monitor"] }],
+  // No crons. Keep this empty list: removing the key leaves any old schedule running on Cloudflare.
+  "triggers": { "crons": [] },
+  "vars": {
+    // Alert when the API gets more than this many requests in 5 minutes.
+    "SPIKE_REQUESTS_5MIN": "2000"
+  },
+  "observability": { "enabled": true, "head_sampling_rate": 1 }
 }

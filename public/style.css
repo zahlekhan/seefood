@@ -41,6 +41,7 @@ body {
     box-shadow: 0 30px 90px rgba(0, 0, 0, .65);
   }
   #phone #verdict .bar { padding-top: 30px; } /* clear the frame's rounded corners */
+  #phone #github { top: 22px; right: 26px; }
 }
 
 #stage { position: relative; flex: 1; overflow: hidden; background: #000; }
@@ -72,6 +73,19 @@ body {
 #install { margin-top: 14px; font-size: 13px; color: #8a8a8a; }
 #install b { color: #cfcfcf; }
 @keyframes bob { 50% { transform: translateY(-10px) rotate(-4deg); } }
+
+#github {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 14px);
+  right: 16px;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  color: #a8a8a8;
+}
+#github:active { color: #fff; }
+#github svg { width: 28px; height: 28px; fill: currentColor; }
 
 #samples { margin-top: 22px; width: 100%; }
 #samples p { margin-bottom: 10px; color: #8a8a8a; font-size: 13px; font-weight: 600; }
@@ -226,6 +240,37 @@ body {
   font-size: 14px;
   text-align: center;
 }
+
+/* ---------- errors */
+
+#oops {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, .62);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+#oops .card {
+  width: 100%;
+  max-width: 330px;
+  padding: 26px 20px 18px;
+  border: 1px solid #2e2e2e;
+  border-radius: 24px;
+  background: #1c1c1c;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .5);
+  text-align: center;
+  animation: rise .25s cubic-bezier(.2, .9, .3, 1.2);
+}
+#oops .emoji { margin-bottom: 10px; font-size: 44px; line-height: 1; }
+#oops h2 { margin-bottom: 8px; font-size: 21px; font-weight: 800; }
+#oops p { color: #b5b5b5; font-size: 15px; line-height: 1.45; }
+#oops .actions { display: flex; gap: 10px; margin-top: 20px; }
+#oops .actions button { flex: 1; padding: 13px 16px; }
+@keyframes rise { from { transform: translateY(16px) scale(.96); opacity: 0; } }
 
 /* ---------- controls */
 

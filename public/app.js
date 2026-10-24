@@ -3,7 +3,7 @@
 const $ = (s) => document.querySelector(s);
 const phone = $("#phone"), stage = $("#stage"), video = $("#video"), photo = $("#photo"), backdrop = $("#backdrop");
 const boxEl = $("#box"), scanEl = $("#scan"), verdictEl = $("#verdict"), homeEl = $("#home");
-const livePill = $("#livepill"), toastEl = $("#toast"), fileInput = $("#file");
+const livePill = $("#livepill"), toastEl = $("#toast"), fileInput = $("#file"), oops = $("#oops");
 
 const GREEN = "#36c24a", RED = "#e8423f";
 const MIN_SIDE = 280, MAX_SIDE = 1568; // Jev image limits: ≥78,400 px and 256–1568 px per side
@@ -56,6 +56,61 @@ function toast(msg) {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const pct = (p) => `${Math.round(p * 100)}%`;
 
+// ---------------------------------------------------------------- errors
+
+const UA = navigator.userAgent;
+const iOS = /iP(hone|ad|od)/.test(UA) || (navigator.maxTouchPoints > 1 && /Mac/.test(UA));
+const CAMERA_HELP = iOS
+  ? "On iPhone: Settings → Apps → Safari → Camera → Allow, then reload."
+  : /Android/.test(UA)
+    ? "Tap the icon left of the address bar, then Permissions → Camera → Allow."
+    : "Click the camera icon in the address bar to allow it, then reload.";
+
+// Every failure a user can hit, in their words. Codes come from the API (src/worker.js) or the browser.
+const ERRORS = {
+  out_of_credits: { icon: "💸", title: "SeeFood is out of hotdog money", text: "The app has used up its Jev credits. It's not you. Check back a little later." },
+  unavailable: { icon: "🔧", title: "SeeFood is down for a bit", text: "It's not you, it's us. Check back a little later." },
+  busy: { icon: "🌭", title: "Jev is swamped", text: "Lots of people are checking hotdogs right now. Try again in a few seconds.", retry: true },
+  timeout: { icon: "⏳", title: "Jev took too long", text: "That one timed out. Try again.", retry: true },
+  jev_error: { icon: "🤕", title: "Jev hit a snag", text: "Something went wrong on Jev's side. Try again in a moment.", retry: true },
+  internal: { icon: "🤕", title: "Something broke", text: "That's on us. Try again.", retry: true },
+  rate_limited: { icon: "🐢", title: "Easy there", text: "That's a lot of photos in one minute. Wait a minute, then try again.", retry: true },
+  offline: { icon: "📡", title: "You're offline", text: "SeeFood needs the internet to ask Jev. Reconnect and try again.", retry: true },
+  network: { icon: "📡", title: "Couldn't reach SeeFood", text: "Check your connection and try again.", retry: true },
+  bad_image: { icon: "🖼️", title: "Couldn't read that photo", text: "Try a different photo. A normal photo from your camera roll works best." },
+  bad_request: { icon: "🖼️", title: "Couldn't send that photo", text: "Try a different photo." },
+  not_image: { icon: "🖼️", title: "That's not a photo", text: "Pick an image, like a photo from your camera roll." },
+  camera_denied: { icon: "📷", title: "Camera is blocked", text: `${CAMERA_HELP} Or tap a sample, or upload a photo.` },
+  camera_missing: { icon: "📷", title: "No camera found", text: "Upload a photo or tap a sample instead." },
+  camera_busy: { icon: "📷", title: "Camera is busy", text: "Another app is using the camera. Close it and try again.", retry: true },
+  camera_unsupported: { icon: "📷", title: "Camera doesn't work here", text: "This browser can't open the camera. Upload a photo or tap a sample instead." },
+};
+
+class AppError extends Error {
+  constructor(code) {
+    super(code);
+    this.code = code;
+  }
+}
+
+let retryFn = null;
+function showError(code, retry) {
+  const e = ERRORS[code] ?? ERRORS.internal;
+  oops.querySelector(".emoji").textContent = e.icon;
+  oops.querySelector("h2").textContent = e.title;
+  oops.querySelector("p").textContent = e.text;
+  retryFn = e.retry && retry ? retry : null;
+  $("#oops-retry").hidden = !retryFn;
+  $("#oops-close").textContent = retryFn ? "Cancel" : "OK";
+  $("#oops-close").classList.toggle("primary", !retryFn);
+  oops.hidden = false;
+}
+
+function hideError() {
+  oops.hidden = true;
+  retryFn = null;
+}
+
 // ---------------------------------------------------------------- images
 
 // Scale `src` so its longest side is ≤ maxSide, upscaling if the short side would fall
@@ -87,14 +142,21 @@ function unpad(b, sent) {
 
 const base64 = (canvas, q) => canvas.toDataURL("image/jpeg", q).split(",")[1];
 
-async function ask(image) {
-  const r = await fetch("/api/seefood", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ image }),
-  });
-  const d = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(d.error ?? "Something broke. Try again.");
+async function ask(image, mode) {
+  if (!navigator.onLine) throw new AppError("offline");
+  let r;
+  try {
+    r = await fetch("/api/seefood", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image, mode }),
+      signal: AbortSignal.timeout(25_000),
+    });
+  } catch (e) {
+    throw new AppError(e?.name === "TimeoutError" ? "timeout" : navigator.onLine ? "network" : "offline");
+  }
+  const d = await r.json().catch(() => null);
+  if (!r.ok) throw new AppError(d?.error ?? (r.status === 429 ? "rate_limited" : "internal"));
   return d;
 }
 
@@ -172,13 +234,22 @@ function chime(yes) {
 async function openCamera() {
   // iOS ends the stream when the app is backgrounded; start a fresh one.
   if (stream?.getVideoTracks().every((t) => t.readyState === "ended")) stream = null;
+  if (!navigator.mediaDevices?.getUserMedia) return showError("camera_unsupported");
   try {
     stream ??= await navigator.mediaDevices.getUserMedia({
       video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1920 } },
       audio: false,
     });
-  } catch {
-    toast("No camera access. Try a sample or upload a photo.");
+  } catch (e) {
+    const code = {
+      NotAllowedError: "camera_denied",
+      SecurityError: "camera_denied",
+      NotFoundError: "camera_missing",
+      OverconstrainedError: "camera_missing",
+      NotReadableError: "camera_busy",
+      AbortError: "camera_busy",
+    }[e?.name];
+    showError(code ?? "camera_unsupported", openCamera);
     return;
   }
   video.srcObject = stream;
@@ -203,7 +274,7 @@ async function judge(view) {
   try {
     const sent = fit(view, view.width, view.height, SNAP_SIDE, MIN_SIDE);
     // Jev answers in ~400 ms; hold the scan a beat so the reveal lands.
-    const [result] = await Promise.all([ask(base64(sent.canvas, 0.85)), sleep(650)]);
+    const [result] = await Promise.all([ask(base64(sent.canvas, 0.85), "snap"), sleep(650)]);
     if (result.blocked) {
       showMedia(null); // never un-blur a flagged photo
       setState("blocked");
@@ -212,7 +283,7 @@ async function judge(view) {
       showResult({ view, result, box: unpad(result.box, sent) });
     }
   } catch (e) {
-    toast(e.message);
+    showError(e.code ?? "internal", () => judge(view));
     if (stream) {
       showMedia("video");
       setState("camera");
@@ -235,14 +306,14 @@ function showResult(shot) {
 }
 
 async function fromFile(file) {
-  if (file?.type && !file.type.startsWith("image/")) return toast("That's not a photo.");
+  if (file?.type && !file.type.startsWith("image/")) return showError("not_image");
   // An <img> applies the phone's EXIF rotation everywhere; createImageBitmap doesn't on older Safari.
   const img = new Image();
   img.src = URL.createObjectURL(file);
   try {
     await img.decode();
   } catch {
-    return toast("Can't read that image. Try a JPEG or PNG.");
+    return showError("bad_image");
   } finally {
     URL.revokeObjectURL(img.src);
   }
@@ -264,10 +335,11 @@ async function startLive() {
     const sent = fit(view, view.width, view.height, LIVE_SIDE, MIN_SIDE);
     let result;
     try {
-      result = await ask(base64(sent.canvas, 0.7));
+      result = await ask(base64(sent.canvas, 0.7), "live");
     } catch (e) {
-      toast(e.message);
+      if (!live || run !== liveRun) break;
       stopLive();
+      showError(e.code ?? "internal", startLive);
       break;
     }
     if (!live || run !== liveRun) break;
@@ -444,12 +516,20 @@ $("#samples").addEventListener("click", async (e) => {
   const b = e.target.closest("[data-sample]");
   if (!b) return;
   unlockAudio();
+  let blob;
   try {
-    await fromFile(await fetch(`/samples/${b.dataset.sample}.jpg`).then((r) => r.blob()));
+    blob = await fetch(`/samples/${b.dataset.sample}.jpg`).then((r) => (r.ok ? r.blob() : Promise.reject()));
   } catch {
-    toast("Couldn't load that sample.");
+    return showError(navigator.onLine ? "network" : "offline", () => b.click());
   }
+  await fromFile(blob);
 });
+on("#oops-retry", () => {
+  const retry = retryFn;
+  hideError();
+  retry?.();
+});
+on("#oops-close", hideError);
 
 fileInput.addEventListener("change", () => {
   const [f] = fileInput.files;
@@ -479,7 +559,6 @@ setState("home");
 
 // Installed or already allowed? Skip the home screen and go straight to the camera.
 const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
-const iOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.userAgent));
 $("#install").hidden = !(iOS && !standalone);
 navigator.permissions
   ?.query({ name: "camera" })
